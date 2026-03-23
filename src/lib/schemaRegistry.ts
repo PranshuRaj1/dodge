@@ -59,6 +59,27 @@ IMPORTANT QUERY NOTES:
 - HUGE IMPORTANT RULE: Users will often ask about raw SAP numbers like '740508' or '91150187' without the prefix. Do NOT assume the prefix. Instead, search the \`id\` column using LIKE '%740508%' OR search the JSON properties using json_extract(props, '$.salesOrder') = '740508', json_extract(props, '$.billingDocument') = '91150187', etc.
 - Example edge traversal: SELECT n2.* FROM nodes n1 JOIN edges e ON n1.id = e.src JOIN nodes n2 ON e.dst = n2.id WHERE n1.label='SalesOrder' AND e.type='ORDERED_BY'
 - To find customer orders: join nodes on edges where type = 'ORDERED_BY'
+
+KEY RELATIONSHIP PATTERNS:
+1. Finding journal entry number linked to a billing document number (e.g. '90504273'):
+   JournalEntry nodes have a 'referenceDocument' prop that stores the billing document number.
+   The journal entry number itself is stored in the 'accountingDocument' prop of JournalEntry nodes.
+   CORRECT QUERY:
+   SELECT DISTINCT json_extract(props, '$.accountingDocument') AS journalEntryNumber
+   FROM nodes
+   WHERE label = 'JournalEntry'
+     AND json_extract(props, '$.referenceDocument') = '90504273';
+   
+   This is the PREFERRED way to find the accounting document / journal entry linked to any billing doc.
+   Do NOT use edge traversal with POSTS_TO — use this direct prop lookup instead.
+
+2. Full O2C chain traversal (Sales Order → Delivery → Billing → Journal Entry):
+   - SO-{n} → DELIVERED_BY → DEL-{n} → BILLED_IN → BILL-{n}
+   - JournalEntry nodes link to billing docs via: json_extract(props,'$.referenceDocument') = billingDocNumber
+
+3. When given a raw number without context (could be billing doc, SO, delivery, etc.):
+   First try: SELECT DISTINCT json_extract(props, '$.accountingDocument') AS journalEntryNumber FROM nodes WHERE label='JournalEntry' AND json_extract(props,'$.referenceDocument') = '{number}'
+   Also try: SELECT * FROM nodes WHERE id LIKE '%{number}%'
 `.trim();
 
   _cache = { nodeLabels, edgeTypes, summary };

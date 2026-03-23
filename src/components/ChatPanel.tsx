@@ -14,7 +14,7 @@ export default function ChatPanel() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: '👋 Hello! I can answer questions about your Order-to-Cash data. Try asking something like:\n• "How many sales orders exist?"\n• "Which customer has the most orders?"\n• "Show me the top 5 products by billing amount."',
+      content: 'Hi! I can help you analyse the Order-to-Cash process. ',
     },
   ]);
   const [input, setInput] = useState('');

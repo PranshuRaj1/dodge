@@ -49,6 +49,8 @@ export async function ask(question: string): Promise<QueryResult> {
 Your ONLY job is to output a single valid SQLite SELECT query — nothing else.
 Do NOT include markdown code fences, explanations, or multiple queries.
 Only output the raw SQL starting with SELECT.
+IMPORTANT: Always follow the KEY RELATIONSHIP PATTERNS in the schema when the user asks about journal entries.
+When a user provides a raw number and asks for the journal entry linked to it, use the POSTS_TO traversal pattern.
 
 ${schema.summary}`,
       },
@@ -101,6 +103,59 @@ ${schema.summary}`,
     };
   }
 
+  // ── Step 2b: Retry with broader query if no rows returned ─────────────────
+  if (rows.length === 0) {
+    // Extract any number-like tokens from the question and retry with POSTS_TO traversal
+    const numberTokens = question.match(/\b\d{5,}\b/g) ?? [];
+    if (numberTokens.length > 0) {
+      const num = numberTokens[0];
+      const retryCompletion = await groq.chat.completions.create({
+        model: MODEL,
+        temperature: 0,
+        max_tokens: 512,
+        messages: [
+          {
+            role: 'system',
+            content: `You are a SQLite query expert for a Supply Chain Order-to-Cash graph database.
+Your ONLY job is to output a single valid SQLite SELECT query — nothing else.
+Do NOT include markdown code fences, explanations, or multiple queries.
+Only output the raw SQL starting with SELECT.
+
+${schema.summary}`,
+          },
+          {
+            role: 'user',
+            content: `The previous query for "${question}" returned 0 rows.
+The number in question is: ${num}
+Try a broader approach: use LIKE '%${num}%' on node ids, OR search JSON properties with json_extract.
+For journal entry lookups, use the referenceDocument field on JournalEntry nodes:
+  SELECT DISTINCT json_extract(props, '$.accountingDocument') AS journalEntryNumber
+  FROM nodes
+  WHERE label = 'JournalEntry'
+    AND json_extract(props, '$.referenceDocument') = '${num}'
+Write a corrected SQLite SELECT query to answer: "${question}"`,
+          },
+        ],
+      });
+
+      let retrySql = retryCompletion.choices[0]?.message?.content?.trim() ?? '';
+      retrySql = retrySql.replace(/^```(?:sql)?\n?/i, '').replace(/\n?```$/, '').trim();
+
+      if (retrySql.toLowerCase().startsWith('select') && !WRITE_PATTERN.test(retrySql)) {
+        try {
+          const db = getDb();
+          const retryRows = db.prepare(retrySql).all();
+          if (retryRows.length > 0) {
+            rows = retryRows;
+            sql = retrySql; // use the retry SQL for reporting
+          }
+        } catch {
+          // silently ignore retry failure — fall through with original empty result
+        }
+      }
+    }
+  }
+
   // ── Step 3: Naturalize Result ─────────────────────────────────────────────
   const naturalCompletion = await groq.chat.completions.create({
     model: MODEL,
@@ -110,7 +165,9 @@ ${schema.summary}`,
       {
         role: 'system',
         content: `You are a helpful business analyst. Summarize SQL query results in clear, concise natural language.
-Be specific with numbers, names, and IDs. Keep the answer to 2-3 sentences maximum.`,
+Be specific with numbers, names, and IDs. Keep the answer to 2-3 sentences maximum.
+If results are found, lead with the direct answer (e.g. "The journal entry number linked to billing document X is Y.").
+If no results are found, say so briefly without over-explaining.`,
       },
       {
         role: 'user',
