@@ -73,7 +73,7 @@ export default async function HomePage() {
         <div className="chat-divider" />
 
         {/* Chat pane */}
-        <ChatPanel />
+        {/* <ChatPanel /> */}
       </main>
     </div>
   );
