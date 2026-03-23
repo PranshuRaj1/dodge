@@ -1,64 +1,79 @@
-import Image from "next/image";
+import GraphCanvas from '@/components/GraphCanvas';
+import ChatPanel from '@/components/ChatPanel';
 
-export default function Home() {
+interface GraphNode {
+  id: string;
+  label: string;
+  props: Record<string, unknown>;
+}
+
+interface GraphEdge {
+  id: string;
+  src: string;
+  dst: string;
+  type: string;
+}
+
+async function getInitialGraph(): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
+  try {
+    // Use absolute URL for server-side fetching
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
+    const res = await fetch(`${baseUrl}/api/graph`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Graph API ${res.status}`);
+    return res.json();
+  } catch {
+    return { nodes: [], edges: [] };
+  }
+}
+
+const LEGEND_ITEMS = [
+  { label: 'SalesOrder',      color: '#6366f1' },
+  { label: 'SalesOrderItem',  color: '#8b5cf6' },
+  { label: 'Delivery',        color: '#0ea5e9' },
+  { label: 'BillingDocument', color: '#f59e0b' },
+  { label: 'Customer',        color: '#10b981' },
+  { label: 'Product',         color: '#f97316' },
+  { label: 'JournalEntry',    color: '#ec4899' },
+  { label: 'Payment',         color: '#14b8a6' },
+];
+
+export default async function HomePage() {
+  const initialData = await getInitialGraph();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="app-layout">
+      {/* Header */}
+      <header className="app-header">
+        <span className="app-logo">⬡ O2C Graph</span>
+        <span className="app-badge">SAP Order-to-Cash Intelligence</span>
+      </header>
+
+      {/* Main content */}
+      <main className="app-main">
+        {/* Graph pane */}
+        <div className="graph-pane">
+          {/* Legend */}
+          <div className="legend">
+            <div className="legend-title">Node Types</div>
+            {LEGEND_ITEMS.map(item => (
+              <div key={item.label} className="legend-item">
+                <div className="legend-dot" style={{ background: item.color }} />
+                {item.label}
+              </div>
+            ))}
+          </div>
+
+          {/* Hint */}
+          <div className="graph-hint">Click any node to expand its connections</div>
+
+          <GraphCanvas initialData={initialData} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
+        {/* Divider */}
+        <div className="chat-divider" />
+
+        {/* Chat pane */}
+        <ChatPanel />
       </main>
     </div>
   );
