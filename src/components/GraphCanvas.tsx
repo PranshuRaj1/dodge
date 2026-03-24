@@ -108,22 +108,42 @@ export default function GraphCanvas({ initialData }: Props) {
     return counts;
   }, [graphData.edges]);
 
-  // Memoize fgData so the graph doesn't restart every render
-  const fgData = useMemo(() => ({
-    nodes: graphData.nodes.map(n => ({
-      id: n.id,
-      label: n.label,
-      props: n.props,
-      name: getNodeName(n),
-      color: getNodeColor(n.label),
-    })),
-    links: graphData.edges.map(e => ({
-      source: e.src,
-      target: e.dst,
-      label: e.type,
-      id: e.id,
-    })),
-  }), [graphData]);
+  // Stable node object cache — reuse existing objects so react-force-graph-2d
+  // doesn't treat them as new nodes (which resets their simulated positions).
+  const nodeCacheRef = useRef<Map<string, object>>(new Map());
+  const edgeCacheRef = useRef<Map<string, object>>(new Map());
+
+  const fgData = useMemo(() => {
+    const nodeCache = nodeCacheRef.current;
+    const edgeCache = edgeCacheRef.current;
+
+    const nodes = graphData.nodes.map(n => {
+      if (!nodeCache.has(n.id)) {
+        nodeCache.set(n.id, {
+          id: n.id,
+          label: n.label,
+          props: n.props,
+          name: getNodeName(n),
+          color: getNodeColor(n.label),
+        });
+      }
+      return nodeCache.get(n.id)!;
+    });
+
+    const links = graphData.edges.map(e => {
+      if (!edgeCache.has(e.id)) {
+        edgeCache.set(e.id, {
+          source: e.src,
+          target: e.dst,
+          label: e.type,
+          id: e.id,
+        });
+      }
+      return edgeCache.get(e.id)!;
+    });
+
+    return { nodes, links };
+  }, [graphData]);
 
   const handleNodeHover = useCallback((node: any) => {
     if (node) {

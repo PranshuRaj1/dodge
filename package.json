@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "test:guardrails": "tsx --env-file=.env.local test/testGuardrails.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",
