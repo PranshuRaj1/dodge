@@ -65,8 +65,8 @@ export default function ChatPanel() {
   return (
     <div className="chat-panel">
       <div className="chat-header">
-        <span className="chat-title">🔍 Query Assistant</span>
-        <span className="chat-subtitle">Powered by Groq · LLaMA 3.3 70B</span>
+        <span className="chat-title">Chat with Graph</span>
+        <span className="chat-subtitle">order to cash</span>
       </div>
 
       <div className="chat-messages">
@@ -74,12 +74,12 @@ export default function ChatPanel() {
           <div key={i} className={`message message-${msg.role}`}>
             <div className="message-bubble">
               <p className="message-text">{msg.content}</p>
-              {msg.sql && (
+              {/* {msg.sql && (
                 <details className="sql-details">
                   <summary>SQL ({msg.rowCount} row{msg.rowCount !== 1 ? 's' : ''})</summary>
                   <pre className="sql-code">{msg.sql}</pre>
                 </details>
-              )}
+              )} */}
             </div>
           </div>
         ))}

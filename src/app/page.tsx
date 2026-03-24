@@ -44,8 +44,8 @@ export default async function HomePage() {
     <div className="app-layout">
       {/* Header */}
       <header className="app-header">
-        <span className="app-logo">⬡ O2C Graph</span>
-        <span className="app-badge">SAP Order-to-Cash Intelligence</span>
+        <span className="app-logo">⬡ Dodge AI</span>
+
       </header>
 
       {/* Main content */}
@@ -73,7 +73,7 @@ export default async function HomePage() {
         <div className="chat-divider" />
 
         {/* Chat pane */}
-        {/* <ChatPanel /> */}
+        <ChatPanel />
       </main>
     </div>
   );
