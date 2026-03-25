@@ -173,7 +173,7 @@ ${question}
   }
 
   // G7: Enforce LIMIT — strip any LLM-generated LIMIT and inject LIMIT 100
-  const safeSql = enforceLimitClause(sql);
+  let safeSql = enforceLimitClause(sql);
 
   // ── Step 2: Execute SQL ───────────────────────────────────────────────────
   let rows: Record<string, unknown>[] = [];
@@ -259,6 +259,7 @@ Write a corrected SQLite SELECT query.`,
             const retrySizeGuard = checkResultSize(retryRows);
             rows = retrySizeGuard.rows;
             sql = safeSqlRetry;
+            safeSql = safeSqlRetry;
           }
         } catch {
           // Silently ignore retry failure — fall through with original empty result
