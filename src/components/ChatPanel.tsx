@@ -89,6 +89,13 @@ export default function ChatPanel({ onResponse, onQueryStart }: Props = {}) {
                 <p className="msg-name">Dodge AI</p>
                 <p className="msg-role">Graph Agent</p>
                 <p className="ai-text">{msg.content}</p>
+                
+              {msg.sql && (
+                <details className="sql-details">
+                  <summary>SQL ({msg.rowCount} row{msg.rowCount !== 1 ? 's' : ''})</summary>
+                  <pre className="sql-code">{msg.sql}</pre>
+                </details>
+              )}
               </div>
             </div>
           ) : (
