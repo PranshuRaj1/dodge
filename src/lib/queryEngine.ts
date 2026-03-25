@@ -36,7 +36,24 @@ export interface QueryResult {
   sql: string;
   rows: unknown[];
   rowCount: number;
+  highlightedNodeIds?: string[];
   error?: string;
+}
+
+function extractNodeIds(rows: Record<string, unknown>[]): string[] {
+  const ids = new Set<string>();
+  // Match actual prefixes from database, e.g. BILL-90504225
+  const NODE_ID_PATTERN = /^(SO|SOI|DEL|BILL|CUST|PROD|JE|PAY|Address)-\S+$/i;
+
+  for (const row of rows) {
+    for (const value of Object.values(row)) {
+      if (typeof value === 'string' && NODE_ID_PATTERN.test(value)) {
+        ids.add(value);
+      }
+    }
+  }
+
+  return [...ids];
 }
 
 export async function ask(question: string): Promise<QueryResult> {
@@ -68,6 +85,8 @@ export async function ask(question: string): Promise<QueryResult> {
 Your ONLY job is to output a single valid SQLite SELECT query — nothing else.
 Do NOT include markdown code fences, explanations, or multiple queries.
 Only output the raw SQL starting with SELECT.
+CRITICAL MANDATORY INSTRUCTION: You MUST always include the \`id\` column in your SELECT statement (e.g. \`SELECT id, ... FROM nodes\`). The UI relies on this \`id\` field existing in the result set to visually highlight nodes on the graph canvas.
+
 IMPORTANT: Always follow the KEY RELATIONSHIP PATTERNS in the schema when the user asks about journal entries.
 When a user provides a raw number and asks for the journal entry linked to it, use the POSTS_TO traversal pattern.
 
@@ -276,5 +295,7 @@ Answer in natural language:`,
     naturalCompletion.choices[0]?.message?.content?.trim() ??
     'No answer could be generated.';
 
-  return { answer, sql: safeSql, rows, rowCount: rows.length };
+  const highlightedNodeIds = extractNodeIds(rows);
+
+  return { answer, sql: safeSql, rows, rowCount: rows.length, highlightedNodeIds };
 }

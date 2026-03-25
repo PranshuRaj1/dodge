@@ -10,7 +10,12 @@ interface Message {
   error?: string;
 }
 
-export default function ChatPanel() {
+interface Props {
+  onResponse?: (result: any) => void;
+  onQueryStart?: () => void;
+}
+
+export default function ChatPanel({ onResponse, onQueryStart }: Props = {}) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -33,6 +38,8 @@ export default function ChatPanel() {
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: question }]);
     setLoading(true);
+    
+    onQueryStart?.();
 
     try {
       const res = await fetch('/api/query', {
@@ -52,6 +59,7 @@ export default function ChatPanel() {
           error: data.error,
         },
       ]);
+      onResponse?.(data);
     } catch {
       setMessages(prev => [
         ...prev,

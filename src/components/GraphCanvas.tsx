@@ -25,6 +25,7 @@ interface GraphData {
 
 interface Props {
   initialData: GraphData;
+  highlightedNodeIds?: Set<string>;
 }
 
 const LABEL_COLORS: Record<string, string> = {
@@ -52,13 +53,20 @@ function getNodeName(node: GraphNode): string {
   );
 }
 
-export default function GraphCanvas({ initialData }: Props) {
+export default function GraphCanvas({ initialData, highlightedNodeIds = new Set() }: Props) {
   const [graphData, setGraphData] = useState<GraphData>(initialData);
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
 
   // Track mouse position WITHOUT React state to avoid re-renders on every move
   const tooltipRef = useRef<HTMLDivElement>(null);
   const expandedRef = useRef(new Set<string>());
+
+  // Pulse ring constants
+  const PULSE_MIN_RADIUS = 1.4;
+  const PULSE_MAX_RADIUS = 2.2;
+  const PULSE_SPEED = 2.4; // Multiplier for Date.now timestamp
+  
+  const graphRef = useRef<any>(null);
 
   // Update tooltip position directly in the DOM — zero re-renders
   useEffect(() => {
@@ -145,6 +153,60 @@ export default function GraphCanvas({ initialData }: Props) {
     return { nodes, links };
   }, [graphData]);
 
+  const nodeCanvasObject = useCallback(
+    (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      const isHighlighted = highlightedNodeIds.has(node.id);
+      const hasHighlights = highlightedNodeIds.size > 0;
+      const baseRadius = Math.max(3, 8 / globalScale);
+      const x = node.x ?? 0;
+      const y = node.y ?? 0;
+
+      // Dimming pass
+      const alpha = hasHighlights && !isHighlighted ? 0.15 : 1.0;
+      ctx.globalAlpha = alpha;
+
+      // Base node circle
+      ctx.beginPath();
+      ctx.arc(x, y, baseRadius, 0, 2 * Math.PI);
+      ctx.fillStyle = node.color ?? '#888';
+      ctx.fill();
+
+      // Pulse ring for highlighted nodes
+      if (isHighlighted) {
+        ctx.globalAlpha = 1.0;
+        const idHash = node.id.split('').reduce(
+          (acc: number, ch: string) => acc + ch.charCodeAt(0), 0
+        );
+        const timePhase = (Date.now() / 1000) * PULSE_SPEED;
+        const nodePhase = timePhase + (idHash % 20) * 0.1;
+        const pulseFactor = PULSE_MIN_RADIUS +
+          (Math.sin(nodePhase) * 0.5 + 0.5) * (PULSE_MAX_RADIUS - PULSE_MIN_RADIUS);
+        const pulseRadius = baseRadius * pulseFactor;
+
+        // Outer glow ring
+        ctx.beginPath();
+        ctx.arc(x, y, pulseRadius, 0, 2 * Math.PI);
+        ctx.strokeStyle = node.color ?? '#888';
+        ctx.lineWidth = 1.5 / globalScale;
+        ctx.globalAlpha = 0.5 * (1 - (pulseFactor - PULSE_MIN_RADIUS) /
+          (PULSE_MAX_RADIUS - PULSE_MIN_RADIUS));
+        ctx.stroke();
+
+        // Bright inner stroke
+        ctx.beginPath();
+        ctx.arc(x, y, baseRadius + 1.5 / globalScale, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1 / globalScale;
+        ctx.globalAlpha = 0.9;
+        ctx.stroke();
+
+        ctx.globalAlpha = 1.0;
+      }
+      ctx.globalAlpha = 1.0;
+    },
+    [highlightedNodeIds]
+  );
+
   const handleNodeHover = useCallback((node: any) => {
     if (node) {
       const graphNode = graphData.nodes.find(n => n.id === String(node.id));
@@ -192,7 +254,11 @@ export default function GraphCanvas({ initialData }: Props) {
       </div>
 
       <ForceGraph2D
+        ref={graphRef}
         graphData={fgData}
+        autoPauseRedraw={highlightedNodeIds.size === 0}
+        nodeCanvasObject={nodeCanvasObject}
+        nodeCanvasObjectMode={() => 'replace'}
         nodeLabel=""
         nodeColor="color"
         nodeRelSize={5}

@@ -19,8 +19,8 @@ export function getSchemaContext(): SchemaContext {
   const db = getDb();
 
   const nodeLabels = db.prepare(
-    `SELECT label, COUNT(*) as count FROM nodes GROUP BY label ORDER BY count DESC`
-  ).all() as { label: string; count: number }[];
+    `SELECT label, COUNT(*) as count, MAX(props) as sampleProps FROM nodes GROUP BY label ORDER BY count DESC`
+  ).all() as { label: string; count: number; sampleProps: string }[];
 
   const edgeTypes = db.prepare(
     `SELECT type, COUNT(*) as count FROM edges GROUP BY type ORDER BY count DESC`
@@ -30,7 +30,15 @@ export function getSchemaContext(): SchemaContext {
   const totalEdges = edgeTypes.reduce((s, r) => s + r.count, 0);
 
   const nodeLines = nodeLabels
-    .map(r => `  - ${r.label} (${r.count} records)`)
+    .map(r => {
+      let keys = '';
+      try {
+        if (r.sampleProps) {
+          keys = Object.keys(JSON.parse(r.sampleProps)).join(', ');
+        }
+      } catch {}
+      return `  - ${r.label} (${r.count} records). Available JSON props: [${keys}]`;
+    })
     .join('\n');
   const edgeLines = edgeTypes
     .map(r => `  - ${r.type} (${r.count} relationships)`)
@@ -55,6 +63,7 @@ ${edgeLines}
 IMPORTANT QUERY NOTES:
 - To filter nodes by type, use: WHERE label = 'SalesOrder'
 - Node properties are in the \`props\` JSON column. Use json_extract(props, '$.fieldName') to access fields.
+- IMPORTANT: If you do not know the exact JSON property key, DO NOT guess it. Instead, SELECT the entire \`props\` column (e.g., \`SELECT props FROM nodes WHERE...\`) so you can read all available fields in the result.
 - Common node ID prefixes (in the \`id\` column): SO- (SalesOrder), SOI- (SalesOrderItem), DEL- (Delivery), BILL- (BillingDocument), CUST- (Customer), PROD- (Product), JE- (JournalEntry), PAY- (Payment)
 - HUGE IMPORTANT RULE: Users will often ask about raw SAP numbers like '740508' or '91150187' without the prefix. Do NOT assume the prefix. Instead, search the \`id\` column using LIKE '%740508%' OR search the JSON properties using json_extract(props, '$.salesOrder') = '740508', json_extract(props, '$.billingDocument') = '91150187', etc.
 - Example edge traversal: SELECT n2.* FROM nodes n1 JOIN edges e ON n1.id = e.src JOIN nodes n2 ON e.dst = n2.id WHERE n1.label='SalesOrder' AND e.type='ORDERED_BY'
