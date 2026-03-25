@@ -77,7 +77,7 @@ export async function ask(question: string): Promise<QueryResult> {
   const sqlCompletion = await groq.chat.completions.create({
     model: MODEL,
     temperature: 0,
-    max_tokens: 512,
+    max_tokens: 2048,
     messages: [
       {
         role: 'system',
@@ -210,7 +210,7 @@ ${question}
       const retryCompletion = await groq.chat.completions.create({
         model: MODEL,
         temperature: 0,
-        max_tokens: 512,
+        max_tokens: 2048,
         messages: [
           {
             role: 'system',
