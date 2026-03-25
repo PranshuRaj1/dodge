@@ -492,3 +492,31 @@ body::before {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* ── Markdown Elements ── */
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.8rem;
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.markdown-body th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.markdown-body tr:nth-child(even) {
+  background: #fcfcfd;
+}

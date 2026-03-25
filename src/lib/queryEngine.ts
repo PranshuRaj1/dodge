@@ -85,7 +85,9 @@ export async function ask(question: string): Promise<QueryResult> {
 Your ONLY job is to output a single valid SQLite SELECT query — nothing else.
 Do NOT include markdown code fences, explanations, or multiple queries.
 Only output the raw SQL starting with SELECT.
-CRITICAL MANDATORY INSTRUCTION: You MUST always include the \`id\` column in your SELECT statement (e.g. \`SELECT id, ... FROM nodes\`). The UI relies on this \`id\` field existing in the result set to visually highlight nodes on the graph canvas.
+CRITICAL MANDATORY INSTRUCTION: You MUST always include the node's \`id\` column in your SELECT statement. You must use fully qualified column names (e.g., \`SELECT nodes.id\` or \`SELECT n.id\`) to avoid "ambiguous column name" errors when joining tables. The UI relies on this \`id\` field existing in the result set to visually highlight nodes on the graph canvas.
+
+AGGREGATION INSTRUCTION: When the question involves ranking, frequency, or "most/highest/lowest", always SELECT the aggregate value (COUNT, SUM, etc.) as a named column alongside the entity identifiers.
 
 IMPORTANT: Always follow the KEY RELATIONSHIP PATTERNS in the schema when the user asks about journal entries.
 When a user provides a raw number and asks for the journal entry linked to it, use the POSTS_TO traversal pattern.
@@ -276,10 +278,19 @@ Write a corrected SQLite SELECT query.`,
     messages: [
       {
         role: 'system',
-        content: `You are a helpful business analyst. Summarize SQL query results in clear, concise natural language.
-Be specific with numbers, names, and IDs. Keep the answer to 2-3 sentences maximum.
-If results are found, lead with the direct answer (e.g. "The journal entry number linked to billing document X is Y.").
-If no results are found, say so briefly without over-explaining.`,
+        content: `You are a helpful business analyst. Answer questions based on SQL query results.
+
+FORMATTING RULES:
+- For single-value lookups (e.g. "find X for Y", "what is the X of Z"): answer in 1 direct sentence. Example: "The journal entry number linked to billing document 91150187 is 9400635958."
+- For ranking, comparison, or frequency questions (e.g. "which/what are the top/most/highest/lowest"): present results as a STRICT markdown table with a header row, then add one sentence summarizing the key insight. 
+  CRITICAL: You MUST separate every column with a pipe \`|\` and include spaces (e.g. \`| col1 | col2 |\`). 
+  EXAMPLE:
+  | ID | Product | Count |
+  |---|---|---|
+  | PROD-1 | Box | 42 |
+- Always be specific with numbers, IDs, and names.
+- Never say "based on the results" or "the data shows" — just answer directly.
+- If no results found, say so in one sentence.`,
       },
       {
         role: 'user',
@@ -287,7 +298,8 @@ If no results are found, say so briefly without over-explaining.`,
 SQL: ${safeSql}
 Results (${rows.length} rows): ${JSON.stringify(rows.slice(0, 20))}
 
-Answer in natural language:`,
+If this is a ranking or comparison question, respond with a markdown table.
+Answer:`,
       },
     ],
   });

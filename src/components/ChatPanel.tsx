@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -88,7 +90,11 @@ export default function ChatPanel({ onResponse, onQueryStart }: Props = {}) {
               <div className="msg-body">
                 <p className="msg-name">Dodge AI</p>
                 <p className="msg-role">Graph Agent</p>
-                <p className="ai-text">{msg.content}</p>
+                <div className="ai-text markdown-body">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.content}
+                  </ReactMarkdown>
+                </div>
                 
               {msg.sql && (
                 <details className="sql-details">
