@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import getDb from '@/lib/db';
+import { sql } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
@@ -12,12 +12,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing nodeId' }, { status: 400 });
     }
 
-    const db = getDb();
-
     // Get all edges where this node is src or dst
-    const edges = db.prepare(
-      `SELECT id, src, dst, type, props FROM edges WHERE src = ? OR dst = ?`
-    ).all(nodeId, nodeId) as { id: string; src: string; dst: string; type: string; props: string }[];
+    const edges = (await sql`
+      SELECT id, src, dst, type, props FROM edges WHERE src = ${nodeId} OR dst = ${nodeId}
+    `) as { id: string; src: string; dst: string; type: string; props: unknown }[];
 
     // Collect all connected node IDs
     const connectedIds = new Set<string>();
@@ -30,10 +28,11 @@ export async function POST(req: NextRequest) {
     // Fetch connected nodes
     const nodes: { id: string; label: string; props: unknown }[] = [];
     for (const id of connectedIds) {
-      const n = db.prepare(`SELECT id, label, props FROM nodes WHERE id = ?`).get(id) as
-        | { id: string; label: string; props: string }
-        | undefined;
-      if (n) nodes.push({ id: n.id, label: n.label, props: JSON.parse(n.props) });
+      const rows = (await sql`
+        SELECT id, label, props FROM nodes WHERE id = ${id}
+      `) as { id: string; label: string; props: unknown }[];
+      const n = rows[0];
+      if (n) nodes.push({ id: n.id, label: n.label, props: n.props ?? {} });
     }
 
     return NextResponse.json({
@@ -43,7 +42,7 @@ export async function POST(req: NextRequest) {
         src: e.src,
         dst: e.dst,
         type: e.type,
-        props: JSON.parse(e.props),
+        props: e.props ?? {},
       })),
     });
   } catch (err) {
