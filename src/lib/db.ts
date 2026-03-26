@@ -1,24 +1,18 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
+import { neon } from '@neondatabase/serverless'
 
-const DB_PATH = path.join(process.cwd(), 'data', 'o2c.db');
-const SCHEMA_PATH = path.join(process.cwd(), 'data', 'schema.sql');
+export const sql = neon(process.env.DATABASE_URL!)
 
-let _db: Database.Database | null = null;
-
-export function getDb(): Database.Database {
-  if (_db) return _db;
-
-  _db = new Database(DB_PATH);
-  _db.pragma('journal_mode = WAL');
-  _db.pragma('foreign_keys = ON');
-
-  // Apply schema on first connection
-  const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
-  _db.exec(schema);
-
-  return _db;
+export async function executeRaw(query: string): Promise<Record<string, unknown>[]> {
+  const result = await sql.query(query)
+  if (!result) return []
+  if (Array.isArray(result)) return result as Record<string, unknown>[]
+  try {
+    return Array.from(result as Iterable<Record<string, unknown>>)
+  } catch {
+    return []
+  }
 }
 
-export default getDb;
+export default function getDb() {
+  return sql;
+}

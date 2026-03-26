@@ -6,17 +6,17 @@ export async function getGraphData() {
   const db = getDb();
 
   // Sample nodes across all labels
-  const labels = db.prepare(`SELECT DISTINCT label FROM nodes`).all() as { label: string }[];
+  const labels = await db`SELECT DISTINCT label FROM nodes`;
 
   const nodeMap = new Map<string, { id: string; label: string; props: unknown }>();
 
   for (const { label } of labels) {
-    const batch = db.prepare(
-      `SELECT id, label, props FROM nodes WHERE label = ? LIMIT ?`
-    ).all(label, MAX_NODES_PER_LABEL) as { id: string; label: string; props: string }[];
+    const batch = await db`
+      SELECT id, label, props FROM nodes WHERE label = ${label} LIMIT ${MAX_NODES_PER_LABEL}
+    `;
 
     for (const n of batch) {
-      nodeMap.set(n.id, { id: n.id, label: n.label, props: JSON.parse(n.props) });
+      nodeMap.set(n.id, { id: n.id, label: n.label, props: typeof n.props === 'string' ? JSON.parse(n.props) : n.props });
     }
   }
 
@@ -26,29 +26,27 @@ export async function getGraphData() {
 
   if (sampledIds.length > 0) {
     // Get all edges where source is in the sampled set
-    const placeholders = sampledIds.map(() => '?').join(',');
-    rawEdges = db.prepare(
-      `SELECT id, src, dst, type, props FROM edges WHERE src IN (${placeholders}) LIMIT 500`
-    ).all(...sampledIds) as { id: string; src: string; dst: string; type: string; props: string }[];
+    rawEdges = await db`
+      SELECT id, src, dst, type, props FROM edges WHERE src = ANY(${sampledIds}) LIMIT 500
+    `;
 
     // For any edge whose dst is not in nodeMap yet, load that node too
-    const missingIds = [...new Set(rawEdges.map(e => e.dst).filter(id => !nodeMap.has(id)))];
+    const missingIds = [...new Set(rawEdges.map((e: any) => e.dst).filter((id: string) => !nodeMap.has(id)))];
     if (missingIds.length > 0) {
-      const mp2 = missingIds.map(() => '?').join(',');
-      const missing = db.prepare(
-        `SELECT id, label, props FROM nodes WHERE id IN (${mp2})`
-      ).all(...missingIds) as { id: string; label: string; props: string }[];
+      const missing = await db`
+        SELECT id, label, props FROM nodes WHERE id = ANY(${missingIds})
+      `;
       for (const n of missing) {
-        nodeMap.set(n.id, { id: n.id, label: n.label, props: JSON.parse(n.props) });
+        nodeMap.set(n.id, { id: n.id, label: n.label, props: typeof n.props === 'string' ? JSON.parse(n.props) : n.props });
       }
     }
 
-    edges = rawEdges.map(e => ({
+    edges = rawEdges.map((e: any) => ({
       id: e.id,
       src: e.src,
       dst: e.dst,
       type: e.type,
-      props: JSON.parse(e.props ?? '{}'),
+      props: typeof e.props === 'string' ? JSON.parse(e.props) : (e.props ?? {}),
     }));
   }
 
