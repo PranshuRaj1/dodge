@@ -12,8 +12,7 @@
 const SQL_FRAGMENT_PATTERNS: RegExp[] = [
   // Set operations — never needed in NL business questions
   /\bUNION\s+(ALL\s+)?SELECT\b/i,
-  /\bINTERSECT\b/i,
-  /\bEXCEPT\b/i,
+  /\bINTERSECT\s+SELECT\b/i,
 
   // Full SELECT ... FROM inside the user question
   /\bSELECT\b[\s\S]{1,200}\bFROM\b/i,
@@ -25,7 +24,7 @@ const SQL_FRAGMENT_PATTERNS: RegExp[] = [
   /\bAND\s+'\w+'\s*=\s*'\w+'/i,
 
   // SQL comment terminators
-  /--[ \t]*/,                    // inline comment
+  /;?\s*--[ \t]*\w/,                    // inline comment
   /\/\*[\s\S]*?\*\//,            // block comment
 
   // Multi-statement injection

@@ -27,7 +27,7 @@ function stripComments(sql: string): string {
 const DISALLOWED_PATTERNS: Array<[RegExp, string]> = [
   [/\bUNION\b/i,                              'UNION operations are not permitted'],
   [/\bINTERSECT\b/i,                          'INTERSECT operations are not permitted'],
-  [/\bEXCEPT\b/i,                             'EXCEPT operations are not permitted'],
+  [/\bEXCEPT\s+SELECT\b/i,                    'EXCEPT set operations are not permitted'],
   [/\bCROSS\s+JOIN\b/i,                       'CROSS JOIN is not permitted'],
   [/\bFROM\s+\w+\s*,\s*\w+[\s,]/i,           'Implicit multi-table joins are not permitted'],
   [/\bPRAGMA\b/i,                             'PRAGMA commands are not permitted'],

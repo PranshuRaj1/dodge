@@ -8,7 +8,7 @@
 
 /** Matches any DML/DDL write keyword as a whole word, case-insensitive. */
 const WRITE_PATTERN =
-  /\b(DROP|DELETE|INSERT|UPDATE|ALTER|CREATE|TRUNCATE|REPLACE|ATTACH|DETACH)\b/i;
+  /\b(DROP|DELETE|INSERT|UPDATE|ALTER|CREATE|TRUNCATE|REPLACE\s+INTO|ATTACH|DETACH)\b/i;
 
 /** Matches dangerous SQLite-specific functions. */
 const DANGEROUS_FUNCTIONS = /\b(load_extension|readfile|writefile)\b/i;

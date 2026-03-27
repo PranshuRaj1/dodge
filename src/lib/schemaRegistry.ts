@@ -66,6 +66,7 @@ IMPORTANT QUERY NOTES:
 - Example edge traversal: SELECT n2.* FROM nodes n1 JOIN edges e ON n1.id = e.src JOIN nodes n2 ON e.dst = n2.id WHERE n1.label='SalesOrder' AND e.type='ORDERED_BY'
 - To find customer orders: join nodes on edges where type = 'ORDERED_BY'
 - NEVER reverse edge directions. src and dst are fixed. Always join ON e.dst = node.id when the node is the destination, and ON e.src = node.id when the node is the source.
+- ID prefixes vs raw numbers: node ids always have prefixes (BILL-, SO-, DEL-, PROD-, JE-, PAY-, etc.) but JSONB props store raw numbers WITHOUT prefixes. When joining a node id to a prop value, always strip the prefix using REPLACE(node.id, 'BILL-', '') or similar. Example: n4.props->>'referenceDocument' = REPLACE(n3.id, 'BILL-', '')
 
 KEY RELATIONSHIP PATTERNS:
 1. Finding journal entry number linked to a billing document number (e.g. '90504273'):
@@ -92,7 +93,26 @@ KEY RELATIONSHIP PATTERNS:
 
 3. Full O2C chain traversal (Sales Order → Delivery → Billing → Journal Entry):
    SO → DELIVERED_BY → DEL → BILLED_IN → BILL
-   JournalEntry nodes link to billing docs via: props->>'referenceDocument' = billingDocNumber
+   JournalEntry links to BillingDocument via props->>'referenceDocument' = raw number (no prefix).
+   CRITICAL: BillingDocument ids have a 'BILL-' prefix (e.g. 'BILL-91150214') but
+   referenceDocument in JournalEntry stores the raw number WITHOUT prefix (e.g. '91150214').
+   Always strip the prefix when joining: n4.props->>'referenceDocument' = REPLACE(n3.id, 'BILL-', '')
+
+   CORRECT full chain query for a billing document number like '91150214':
+   SELECT
+     n1.id AS sales_order_id,
+     n2.id AS delivery_id,
+     n3.id AS billing_document_id,
+     n4.props->>'accountingDocument' AS journal_entry_number
+   FROM nodes n1
+   JOIN edges e1 ON n1.id = e1.src AND e1.type = 'DELIVERED_BY'
+   JOIN nodes n2 ON n2.id = e1.dst AND n2.label = 'Delivery'
+   JOIN edges e2 ON n2.id = e2.src AND e2.type = 'BILLED_IN'
+   JOIN nodes n3 ON n3.id = e2.dst AND n3.label = 'BillingDocument'
+   JOIN nodes n4 ON n4.label = 'JournalEntry'
+     AND n4.props->>'referenceDocument' = REPLACE(n3.id, 'BILL-', '')
+   WHERE n3.id LIKE '%91150214%'
+   LIMIT 100
 
 4. Products associated with billing documents (CRITICAL — use this exact pattern):
    The graph branches from SalesOrder: one branch goes to SalesOrderItem→Product,
